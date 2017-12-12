@@ -1,0 +1,5 @@
+package semantics
+
+class BoxSem {
+  
+}
