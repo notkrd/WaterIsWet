@@ -37,29 +37,4 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
   }
   
   val BoxSatisfiable: Box => Boolean = (_) => true
-  
-  val EmbeddingCandidates: Box => Set[Embedding] = (a_box) => {
-    val ordered_vars = a_box.the_vars.toList
-    var var_candidates = scala.collection.mutable.Map[Variable, Either[Set[Entity],Variable]]()
-    a_box.the_conds.foreach((c) => c match {
-      case var_assignment(the_var, the_val) => var_candidates(the_var) = Left(Set[Entity](the_val))
-      case pred_sing(the_pred, the_var) => if(!var_candidates.isDefinedAt(the_var)) {
-        var_candidates(the_var) = Left(entities_set.filter(relations1(the_pred)))
-      }
-      case var_equality(left_var, right_var) => if(var_candidates.isDefinedAt(left_var)) {
-        var_candidates(right_var) = Right(left_var)
-      }
-      else if(var_candidates.isDefinedAt(right_var)) {
-        var_candidates(left_var) = Right(right_var)
-      }
-      else {
-        var_candidates(right_var) = Right(left_var)
-      }
-      
-    })
-    ordered_vars.foreach {(_) => 
-      println("no")
-    }
-    Set[Embedding]()
-  }
 }
