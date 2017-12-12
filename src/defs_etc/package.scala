@@ -7,4 +7,5 @@ package object defs_etc {
   type PredSing = Entity => Boolean
   type PredBin = Entity => Entity => Boolean
   type Embedding = Map[Variable, Entity]
+  type Assignment = Map[Variable, Phrase]
 }

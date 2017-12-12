@@ -19,11 +19,11 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
   
   val ValidAssignment: Embedding => Boolean = (the_func) => the_func.values.toSet subsetOf this.entities_set
   
-  val IsConditionEmbedding: Embedding => Condition => Boolean = (an_embedding) => (a_cond) => a_cond match {
+  val IsConditionEmbedding: Assignment => Condition => Boolean = (an_embedding) => (a_cond) => a_cond match {
     case truth_value(a_polarity) => a_polarity
     case var_assignment(the_var, the_val) => an_embedding(the_var) == entities(the_val)
     case pred_sing(the_pred, the_var) => relations1(the_pred)(an_embedding(the_var))
-    case pred_bin(the_pred, left_var, right_var) => relations2(the_pred)(entities(left_var))(entities(right_var))
+    case pred_bin(the_pred, left_var, right_var) => relations2(the_pred)(an_embedding(left_var))(an_embedding(right_var))
     case var_equality(left_var, right_var) => an_embedding(left_var) == an_embedding(right_var)
     case not_box(the_box) => !IsBoxEmbedding(an_embedding)(the_box)
     case sub_box(left_box, right_box) => !(IsBoxEmbedding(an_embedding)(left_box) && !IsBoxEmbedding(an_embedding)(right_box))
@@ -31,10 +31,28 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
     case _ => true
   }
   
-  val IsBoxEmbedding: Embedding => Box => Boolean = (an_embedding) => (the_box) => the_box match {
-    case ConditionsBox(_, the_conds) => the_conds forall IsConditionEmbedding(an_embedding)
-    case Merge(left_box, right_box) => IsBoxEmbedding(an_embedding)(left_box) && IsBoxEmbedding(an_embedding)(right_box)
+  val IsBoxEmbedding: Embedding => Box => Boolean = (an_embedding) => (the_box) => {
+    the_box.the_conds.forall(IsConditionEmbedding(an_embedding))
   }
   
   val BoxSatisfiable: Box => Boolean = (_) => true
+  
+  val AllEmbeddingsOnVars: Seq[Variable] => Seq[Embedding] = (the_vars) => {
+    if(the_vars.isEmpty) {
+      Seq()
+    }
+    else if(the_vars.size == 1) {
+      entities.values.map((e) => Map(the_vars.head -> e)).toSeq
+    }
+    else {
+      for {
+        an_embedding <- AllEmbeddingsOnVars(the_vars.tail)
+        an_entity <- entities.values
+      } yield an_embedding + (the_vars.head -> an_entity)
+    }
+  }
+  
+  val Embeddings: Box => Seq[Embedding] = (a_box) => 
+    AllEmbeddingsOnVars(a_box.the_vars.toSeq) filter ((e) => ValidAssignment(e) && IsBoxEmbedding(e)(a_box))
+
 }
