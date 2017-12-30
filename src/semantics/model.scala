@@ -12,28 +12,28 @@ import syntax._
  * allow accessing parts of the model through strings: the Model can contain the data of the strctured representations of 
  * predicates, while the semantics only knows how to "send a word into the portal"
  */
-class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], relations2: Map[Phrase, Entity => Entity => Boolean]) {
+class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSing], relations2: Map[KeyPhrase, Entity => Entity => Boolean]) {
   /* The entities in the model */
-  val entities_set: Set[Entity] = this.entities.values.toSet
+  lazy val entities_set: Set[Entity] = this.entities.values.toSet
   /* The one-place relations in the model */
-  val relations1_set: Set[PredSing] = this.relations1.values.toSet
+  lazy val relations1_set: Set[PredSing] = this.relations1.values.toSet
   /* The binary relations in the model */
-  val relations2_set: Set[PredBin] = this.relations2.values.toSet
+  lazy val relations2_set: Set[PredBin] = this.relations2.values.toSet
   /* All words in the model */
-  val lexicon_set: Set[Phrase] = entities.keySet ++ relations1.keySet ++ relations2.keySet
+  lazy val lexicon_set: Set[KeyPhrase] = entities.keySet ++ relations1.keySet ++ relations2.keySet
   
   /* Evaluates a predicate, accessed by name */
-  val SemR1: Phrase => Phrase => Boolean = (vi) => (n) => relations1(vi)(entities(n))
+  def SemR1 (vi: KeyPhrase)(subj: KeyPhrase) = relations1(vi)(entities(subj))
   /* Evaluates a binary relation, accessed by name */
-  val SemR2: Phrase => Phrase => Phrase => Boolean = (vt) => (n1) => (n2) => relations2(vt)(entities(n1))(entities(n2))
+  def SemR2(vt: KeyPhrase)(obj: KeyPhrase)(subj: KeyPhrase) = relations2(vt)(entities(obj))(entities(subj))
   /* Evaluates an "and" expression. Doesn't work */
-  val SemAnd: Phrase => Phrase => Boolean = (ph1) => (ph2) => false
+  def SemAnd(ph1: KeyPhrase)(ph2: KeyPhrase) = false
   
   /* Ensures an embedding won't lead to key errors */
-  val ValidAssignment: Embedding => Boolean = (the_func) => the_func.values.toSet subsetOf this.entities_set
+  def ValidAssignment(the_func: Embedding) = the_func.values.toSet subsetOf this.entities_set
   
   /* Tests whether an embedding satisfies a given condition */
-  val IsConditionEmbedding: Embedding => Condition => Boolean = (an_embedding) => (a_cond) => a_cond match {
+  def IsConditionEmbedding(an_embedding: Embedding)(a_cond: Condition): Boolean = a_cond match {
     case truth_value(a_polarity) => a_polarity
     case var_assignment(the_var, the_val) => an_embedding(the_var) == the_val
     case pred_sing(the_pred, the_var) => relations1(the_pred)(an_embedding(the_var))
@@ -45,13 +45,13 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
     case _ => true
   }
   
-  val IsBoxEmbedding: Embedding => Box => Boolean = (an_embedding) => (the_box) => {
+  def IsBoxEmbedding(an_embedding: Embedding)(the_box: Box): Boolean = {
     the_box.the_conds.forall(IsConditionEmbedding(an_embedding))
   }
   
-  lazy val BoxSatisfiable: Box => Boolean = (a_box) => !(Embeddings(a_box).isEmpty)
+  def BoxSatisfiable(a_box: Box): Boolean = !(Embeddings(a_box).isEmpty)
   
-  lazy val AllEmbeddingsOnVars: Seq[Variable] => Seq[Embedding] = (the_vars) => {
+  def AllEmbeddingsOnVars(the_vars: Seq[Variable]): Seq[Embedding] = {
     if(the_vars.isEmpty) {
       Seq()
     }
@@ -66,27 +66,38 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
     }
   }
   
-  /* A sequence of possible assignments for the_var at a_box. Contains all valid assignments, though possibly other junk
-   *  
-   *  This is the one method that is not yet functional, simply out of laziness.
+  /* A sequence of possible assignments for the_var at a_box. Contains all valid assignments, though possibly other junk. 
    */
-  lazy val PossibleAssignments: Box => Variable => Embedding => Seq[Entity] = (the_box) => (the_var) => (prev_asig) => {
-    var assignment_options: Seq[Entity]  = Seq()
-    the_box.the_conds.foreach((c) => c match {
-      case var_assignment(a_var, x) if a_var == the_var => assignment_options = Seq(x)
-      case var_equality(a_var, other_var) if a_var == the_var && prev_asig.isDefinedAt(other_var) => assignment_options = Seq(prev_asig(other_var))
-      case var_equality(other_var, a_var) if a_var == the_var && prev_asig.isDefinedAt(other_var) => assignment_options = Seq(prev_asig(other_var))
-      case pred_sing(the_pred, a_var) if a_var == the_var && assignment_options.size != 1 => assignment_options = entities_set.filter(relations1(the_pred)).toSeq
-      case _ => ()
-    })
-    if(assignment_options.isEmpty) {
-      assignment_options = entities_set.toSeq
-    }
-    assignment_options
+  def PossibleAssignments(the_box: Box)(the_var: Variable)(prev_asig: Embedding): Seq[Entity] = {
+    PossibleAssignmentsHelper(the_box.the_conds.toSeq)(the_var)(prev_asig)(Seq())
   }
   
-   /* A sequence of possible embeddings for the_vars at a_box. Contains all valid embeddings, though possibly other junk */
-  lazy val PlausibleEmbeddingsOnVars: Box => Seq[Variable] => Set[Embedding] = (a_box) => (the_vars) => {
+  def PossibleAssignmentsHelper(the_conds: Seq[Condition])(the_var: Variable)(prev_asig: Embedding)(asig_op: Seq[Entity]): Seq[Entity] = {
+    if(the_conds.isEmpty) {
+      if(asig_op.isEmpty) {
+        entities_set.toSeq
+      }
+      else {
+        asig_op
+      }
+    }
+    else {
+      the_conds.head match {
+        case var_assignment(a_var, x) if a_var == the_var => Seq(x)
+        case var_equality(a_var, other_var) if a_var == the_var && prev_asig.isDefinedAt(other_var) => 
+          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(Seq(prev_asig(other_var)))
+        case var_equality(other_var, a_var) if a_var == the_var && prev_asig.isDefinedAt(other_var) => 
+          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(Seq(prev_asig(other_var)))
+        case pred_sing(the_pred, a_var) if a_var == the_var && prev_asig.size != 1 =>  
+          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(entities_set.filter(relations1(the_pred)).toSeq)
+        case _ =>   
+          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(asig_op)
+      } 
+    }
+  }
+  
+   /* A sequence of possible embeddings for the_vars at a_box. Contains all valid embeddings, though possibly other junk. Order matters. */
+  def PlausibleEmbeddingsOnVars(a_box: Box)(the_vars: Seq[Variable]): Set[Embedding] = {
     if(the_vars.isEmpty) {
       Set()
     }
@@ -102,9 +113,9 @@ class Model(entities: Map[Phrase, Entity], relations1: Map[Phrase, PredSing], re
   }
 
   /* All possible embeddings for a DRT into this model */
-  lazy val Embeddings: Box => Set[Embedding] = (a_box) => 
+  def Embeddings(a_box: Box): Set[Embedding] =  
     PlausibleEmbeddingsOnVars(a_box)(a_box.the_vars.toSeq) filter ((e) => ValidAssignment(e) && IsBoxEmbedding(e)(a_box))
   
-  /* A valid embedding of a DRT on the model, with no other guarantees about it */
-  lazy val an_embedding: Box => Embedding = (a_box) => Embeddings(a_box).head
+  /* A valid embedding of a DRT on the model, with no other guarantees about it. Fails if there are no embeddings */
+  def an_embedding(a_box: Box): Embedding = Embeddings(a_box).head
 }

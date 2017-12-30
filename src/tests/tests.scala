@@ -1,4 +1,7 @@
 package tests
+
+import scala.util.parsing.combinator._
+
 import defs_etc._
 import semantics._
 import syntax._
@@ -6,20 +9,20 @@ import syntax._
 object tests {
   def main(args: Array[String]) = {
     model_tests()
+    parser_tests()
     embedding_tests()
-    transform_tests()
   }
   
   val textbook_entities = Map("Anwar" -> "AS", "Mohammed" -> "MA", "Noam" -> "NC", "John" -> "JM")
-  val is_bald = Set("MA", "JM")
+  def is_bald = Set(textbook_entities("Anwar"), textbook_entities("John"))
   
-  val does_love: Entity => Entity => Boolean = (e1: Entity) => (e2: Entity) => Seq(e1,e2) match {
+  def does_love: Entity => Entity => Boolean = (e1: Entity) => (e2: Entity) => Seq(e1,e2) match {
     case Seq(e1, e2)  if e1 == e2 => true
     case _ => false
   }
   val textbook_r1 = Map("bald" -> is_bald)
   val textbook_r2 = Map("loves" -> does_love)
-  lazy val textbook_model = new Model(textbook_entities, textbook_r1, textbook_r2)
+  val textbook_model = new Model(textbook_entities, textbook_r1, textbook_r2)
   
   def model_tests() = {
     
@@ -40,11 +43,15 @@ object tests {
               Set(pred_bin("loves","X","Y"))))
   
   def embedding_tests() = {
-    println(textbook_model.Embeddings(SampleBox))
+    println(textbook_model Embeddings SampleBox)
     println(textbook_model.PlausibleEmbeddingsOnVars(SampleBox)(SampleBox.the_vars.toSeq).size)
   }
   
-  def transform_tests() = {
-    println(TransformHelper.general_rule(Seq("N","NP","S","VP"), new TransformRule("X",Seq("X","CONJ","X"))))
+  def parser_tests() = {
+    object Whatever extends RegexParsers
+    println(Whatever.parse(Whatever.accept('h'),"hello"))
+    println(Whatever.parse("hi": Whatever.Parser[String],"hi there"))
+    println(Whatever.parse("hi": Whatever.Parser[String],"bye there"))
   }
+  
 }
