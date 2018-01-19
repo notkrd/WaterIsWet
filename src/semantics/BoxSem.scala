@@ -1,4 +1,6 @@
 package semantics
+
+import scala.collection.immutable.Seq
 import syntax.{Box}
 import defs_etc._
 

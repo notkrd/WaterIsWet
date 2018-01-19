@@ -1,4 +1,6 @@
 package semantics
+
+import scala.collection.immutable.Seq
 import defs_etc._
 import syntax._
 
@@ -12,15 +14,15 @@ import syntax._
  * allow accessing parts of the model through strings: the Model can contain the data of the strctured representations of 
  * predicates, while the semantics only knows how to "send a word into the portal"
  */
-class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSing], relations2: Map[KeyPhrase, Entity => Entity => Boolean]) {
+class Model(val entities: Map[KeyPhrase, Entity], val relations1: Map[KeyPhrase, PredSing], val relations2: Map[KeyPhrase, Entity => Entity => Boolean]) {
   /* The entities in the model */
-  lazy val entities_set: Set[Entity] = this.entities.values.toSet
+  val entities_set: Set[Entity] = this.entities.values.toSet
   /* The one-place relations in the model */
-  lazy val relations1_set: Set[PredSing] = this.relations1.values.toSet
+  val relations1_set: Set[PredSing] = this.relations1.values.toSet
   /* The binary relations in the model */
-  lazy val relations2_set: Set[PredBin] = this.relations2.values.toSet
+  val relations2_set: Set[PredBin] = this.relations2.values.toSet
   /* All words in the model */
-  lazy val lexicon_set: Set[KeyPhrase] = entities.keySet ++ relations1.keySet ++ relations2.keySet
+  val lexicon_set: Set[KeyPhrase] = entities.keySet ++ relations1.keySet ++ relations2.keySet
   
   /* Evaluates a predicate, accessed by name */
   def SemR1 (vi: KeyPhrase)(subj: KeyPhrase) = relations1(vi)(entities(subj))
@@ -56,7 +58,7 @@ class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSin
       Seq()
     }
     else if(the_vars.size == 1) {
-      entities.values.map((e) => Map(the_vars.head -> e)).toSeq
+      entities.values.map((e) => Map(the_vars.head -> e)).to[collection.immutable.Vector]
     }
     else {
       for {
@@ -69,13 +71,13 @@ class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSin
   /* A sequence of possible assignments for the_var at a_box. Contains all valid assignments, though possibly other junk. 
    */
   def PossibleAssignments(the_box: Box)(the_var: Variable)(prev_asig: Embedding): Seq[Entity] = {
-    PossibleAssignmentsHelper(the_box.the_conds.toSeq)(the_var)(prev_asig)(Seq())
+    PossibleAssignmentsHelper(the_box.the_conds.toSeq)(the_var)(prev_asig)(Vector())
   }
   
   def PossibleAssignmentsHelper(the_conds: Seq[Condition])(the_var: Variable)(prev_asig: Embedding)(asig_op: Seq[Entity]): Seq[Entity] = {
     if(the_conds.isEmpty) {
       if(asig_op.isEmpty) {
-        entities_set.toSeq
+        entities_set.to[collection.immutable.Vector]
       }
       else {
         asig_op
@@ -89,7 +91,7 @@ class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSin
         case var_equality(other_var, a_var) if a_var == the_var && prev_asig.isDefinedAt(other_var) => 
           PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(Seq(prev_asig(other_var)))
         case pred_sing(the_pred, a_var) if a_var == the_var && prev_asig.size != 1 =>  
-          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(entities_set.filter(relations1(the_pred)).toSeq)
+          PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(entities_set.filter(relations1(the_pred)).to[collection.immutable.Vector])
         case _ =>   
           PossibleAssignmentsHelper(the_conds.tail)(the_var)(prev_asig)(asig_op)
       } 
@@ -114,7 +116,7 @@ class Model(entities: Map[KeyPhrase, Entity], relations1: Map[KeyPhrase, PredSin
 
   /* All possible embeddings for a DRT into this model */
   def Embeddings(a_box: Box): Set[Embedding] =  
-    PlausibleEmbeddingsOnVars(a_box)(a_box.the_vars.toSeq) filter ((e) => ValidAssignment(e) && IsBoxEmbedding(e)(a_box))
+    PlausibleEmbeddingsOnVars(a_box)(a_box.the_vars.to[collection.immutable.Vector]) filter ((e) => ValidAssignment(e) && IsBoxEmbedding(e)(a_box))
   
   /* A valid embedding of a DRT on the model, with no other guarantees about it. Fails if there are no embeddings */
   def an_embedding(a_box: Box): Embedding = Embeddings(a_box).head

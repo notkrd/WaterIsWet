@@ -1,4 +1,6 @@
 package syntax
+
+import scala.collection.immutable.Seq
 import defs_etc._
 
 abstract class Condition {
@@ -8,8 +10,8 @@ abstract class Condition {
     case pred_bin(_, v1, v2) => Seq(v1,v2)
     case var_equality(v1, v2) => Seq(v1, v2)
     case not_box(b) => b.the_vars
-    case sub_box(l, r) => l.the_vars ++ r.the_vars
-    case or_box(l, r) => l.the_vars ++ r.the_vars
+    case sub_box(l, r) => l.the_vars ++: r.the_vars
+    case or_box(l, r) => l.the_vars ++: r.the_vars
     case _ => Seq()
   }
 }

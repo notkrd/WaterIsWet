@@ -1,4 +1,6 @@
 
+import scala.collection.immutable.Seq
+
 /* Relevant type synonyms. */
 package object defs_etc {
   type KeyPhrase = String
@@ -14,5 +16,9 @@ package object defs_etc {
   implicit def RefVar(r: Referent): Variable = r match {
     case Left(v) => v
     case Right(v) => v
+  }
+  
+  def tuplesToPredBin(tups: Set[Tuple2[Entity,Entity]]): PredBin = (x: Entity) => (y: Entity) => {
+    tups.contains((x,y))
   }
 }

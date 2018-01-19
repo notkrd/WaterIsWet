@@ -1,5 +1,6 @@
 package tests
 
+import scala.collection.immutable.Seq
 import scala.util.parsing.combinator._
 
 import defs_etc._
@@ -9,8 +10,8 @@ import syntax._
 object tests {
   def main(args: Array[String]) = {
     model_tests()
-    parser_tests()
     embedding_tests()
+    parser_tests()
   }
   
   val textbook_entities = Map("Anwar" -> "AS", "Mohammed" -> "MA", "Noam" -> "NC", "John" -> "JM")
@@ -20,7 +21,7 @@ object tests {
     case Seq(e1, e2)  if e1 == e2 => true
     case _ => false
   }
-  val textbook_r1 = Map("bald" -> is_bald)
+  val textbook_r1 = Map("is bald" -> is_bald, "balds" -> is_bald)
   val textbook_r2 = Map("loves" -> does_love)
   val textbook_model = new Model(textbook_entities, textbook_r1, textbook_r2)
   
@@ -29,29 +30,50 @@ object tests {
     println(is_bald("JM") == true)
     println(does_love("NC")("NC") == true)
     println(does_love("MA")("JM") == false)
-    println(textbook_model.SemR1("bald")("John") == true)
+    println(textbook_model.SemR1("is bald")("John") == true)
+    println(textbook_model.SemR2("loves")("Noam")("Noam") == true)
+    println(textbook_model.SemR2("loves")("Mohammed")("John") == false)
+    
+    println(is_bald("JM") == true)
+    println(does_love("NC")("NC") == true)
+    println(does_love("MA")("JM") == false)
+    println(textbook_model.SemR1("is bald")("John") == true)
     println(textbook_model.SemR2("loves")("Noam")("Noam") == true)
     println(textbook_model.SemR2("loves")("Mohammed")("John") == false)
   }
   
   val SampleBox: Box = (new Box(
-      Set("X","Y","W","Z"),
-      Set(var_assignment("Z","AS"),
+      Vector("X","Y","W","Z"),
+      Vector(var_assignment("Z","AS"),
           var_equality("W","Z"),
-          pred_sing("bald","X")))).Merge(new Box(
-              Set("Y"),
-              Set(pred_bin("loves","X","Y"))))
+          pred_sing("is bald","X")))).Merge(new Box(
+              Vector("Y"),
+              Vector(pred_bin("loves","X","Y"))))
   
+  val SampleBox2: Box = (new Box(
+      Vector("X","Y","W","Z"),
+      Vector(var_assignment("Z","ANT"),
+          var_equality("W","Z"),
+          pred_sing("lives","X")))).Merge(new Box(
+              Vector("Y"),
+              Vector(pred_bin("sees","X","Y"))))
+              
   def embedding_tests() = {
     println(textbook_model Embeddings SampleBox)
     println(textbook_model.PlausibleEmbeddingsOnVars(SampleBox)(SampleBox.the_vars.toSeq).size)
+    println(models.thisRoom.d_model Embeddings SampleBox2)
+    println(models.thisRoom.d_model.PlausibleEmbeddingsOnVars(SampleBox2)(SampleBox2.the_vars.toSeq).size)
   }
   
   def parser_tests() = {
-    object Whatever extends RegexParsers
-    println(Whatever.parse(Whatever.accept('h'),"hello"))
-    println(Whatever.parse("hi": Whatever.Parser[String],"hi there"))
-    println(Whatever.parse("hi": Whatever.Parser[String],"bye there"))
+    println(CombinatoryGrammar.parse(CombinatoryGrammar.accept('h'),"hello"))
+    println(CombinatoryGrammar.parse("hi": CombinatoryGrammar.Parser[String],"hi there"))
+    println(CombinatoryGrammar.parse("hi": CombinatoryGrammar.Parser[String],"bye there"))
+    println(CombinatoryGrammar.parse(CombinatoryGrammar.parsePhrase[Referent, CombinatoryGrammar.Term](CombinatoryGrammar.NP("Jeet")), "! Jeet lives"))
+    val j_bald = CombinatoryGrammar.parse(CombinatoryGrammar.EngSParser(textbook_model), "John balds")
+    println(j_bald)
+    println(textbook_model.Embeddings(CombinatoryGrammar.unwrapSent(j_bald)))
+    println(models.thisRoom.evalSentence("ant lives"))
   }
   
 }

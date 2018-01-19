@@ -1,5 +1,7 @@
 package syntax
 
+import scala.collection.immutable.Seq
+
 /* Types in a combinatory syntax.
  * 
  * The only operation in this syntax is a MERGE

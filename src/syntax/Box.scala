@@ -1,4 +1,6 @@
 package syntax
+
+import scala.collection.immutable.Seq
 import defs_etc._
 import semantics.Model
 
