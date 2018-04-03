@@ -8,7 +8,11 @@ import defs_etc._
 import syntax._
 import semantics._
 
-object thisRoom extends Discourse {
+object thisRoom {
+  type ParseResult[A] = CombinatoryGrammar.ParseResult[A]
+  type Sentence = CombinatoryGrammar.Sentence
+  type Term = CombinatoryGrammar.Term
+  
   val d_entities: Map[KeyPhrase, Entity] = Map("the rug" -> "BLUE_RUG", "the window" -> "WINDOW", "the peel" -> "ORANGE_PEEL", "ant" -> "ANT", "the dishes" -> "DISHES", "I" -> "AUTHOR", "the deer" -> "DEER")
   
   val isAlive: PredSing = Set("ANT", "AUTHOR", "DEER")
@@ -19,4 +23,14 @@ object thisRoom extends Discourse {
   val d_rel2: Map[KeyPhrase, PredBin] = Map("sees" -> doesSee)
   
   val discRepresentation = new Box(Seq(), Seq())
+  
+  val d_model: Model = new Model(d_entities, d_rel1, d_rel2)
+  
+  def parseSentence(s: String): ParseResult[Sentence] = CombinatoryGrammar.EngSParser(d_model)(new CharSequenceReader(s))
+  
+  def evalSentence(s: String): Either[String, Set[Embedding]] = parseSentence(s) match {
+    case CombinatoryGrammar.Error(e, r) => Left("Parser error with message " + e)
+    case CombinatoryGrammar.Failure(f, r) => Left("Parser failed with message " + f)
+    case CombinatoryGrammar.Success(s, r) => Right(d_model.Embeddings(s.meaning(discRepresentation)))
+  }
 }
